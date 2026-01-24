@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  Upload, FileText, CheckCircle, AlertCircle, BarChart2,
-  PieChart, TrendingUp, ShieldAlert, Zap, Loader2,
+  CheckCircle, AlertCircle, TrendingUp, Zap, Loader2,
   Briefcase, File as FileIcon, RefreshCw, Download,
-  Bookmark, Layers, Globe, ChevronDown, Printer
+  Bookmark, Layers, Globe, ChevronDown, Printer, Upload
 } from 'lucide-react';
 import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -1028,12 +1027,7 @@ function ResultSection({ result, industry, onReset, isDownloading, setIsDownload
   t: any
 }) {
 
-  const getScoreColor = (score: number) => {
-    if (score >= 85) return 'text-emerald-700';
-    if (score >= 70) return 'text-indigo-700';
-    if (score >= 50) return 'text-amber-600';
-    return 'text-rose-600';
-  };
+
 
   const getGradeStyle = (grade: string) => {
     const styles: Record<string, string> = {
