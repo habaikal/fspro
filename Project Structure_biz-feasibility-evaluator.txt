@@ -1,0 +1,20 @@
+biz-feasibility-evaluator/
+├── public/
+│    └── vite.svg
+├── src/
+│    ├── assets/
+│    ├── App.tsx # 핵심 로직 (수정됨)
+│    ├── main.tsx # 진입점
+│    ├── index.css # Tailwind 설정
+│    └── vite-env.d.ts
+├── .env # 환경변수 (API Key 저장 - git 제외)
+├── .env.example # 환경변수 템플릿
+├── .gitignore
+├── index.html
+├── package.json
+├── postcss.config.js
+├── tailwind.config.js
+├── tsconfig.json
+├── tsconfig.node.json
+├── vite.config.ts
+└── README.md
