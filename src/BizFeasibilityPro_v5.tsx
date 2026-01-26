@@ -11,8 +11,8 @@ import {
 
 /**
  * GEMINI API CONFIGURATION
+ * API Key is managed in App state
  */
-const apiKey = "AIzaSyDvsEhX4lJMaaufQWIQ-grQSN7PWHtsqpA";
 
 // --- Types & Interfaces ---
 
@@ -457,6 +457,9 @@ const LANGUAGES: { code: LanguageCode; name: string; flag: string }[] = [
 
 export default function App() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [apiKey, setApiKey] = useState('');
+  const [tempApiKey, setTempApiKey] = useState('');
+  const [temperature, setTemperature] = useState<number>(0.0);
   const [selectedIndustry, setSelectedIndustry] = useState<IndustryType>('General/Other');
   const [language, setLanguage] = useState<LanguageCode>('en');
   const [file, setFile] = useState<File | null>(null);
@@ -660,7 +663,7 @@ export default function App() {
             },
             generationConfig: {
               responseMimeType: "application/json",
-              temperature: 0.0, // FORCING DETERMINISTIC OUTPUT FOR CONSISTENCY
+              temperature: temperature,
             }
           }),
         }
@@ -745,7 +748,49 @@ export default function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-12 print:p-0">
-        {step === 1 && (
+        {!apiKey && (
+          <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg border border-slate-200 p-8 text-center animate-in fade-in zoom-in duration-300">
+            <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6 text-indigo-600">
+              <Zap className="w-8 h-8" />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-800 mb-2">Welcome to FS Pro</h2>
+            <p className="text-slate-500 mb-6">
+              {language === 'ko' ? '서비스 이용을 위해 Gemini API Key를 입력해주세요.' : 'Please enter your Gemini API Key to continue.'}
+            </p>
+
+            <div className="space-y-4 text-left">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Gemini API Key</label>
+                <input
+                  type="password"
+                  value={tempApiKey}
+                  onChange={(e) => setTempApiKey(e.target.value)}
+                  placeholder="AIzaSy..."
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                />
+              </div>
+
+              <button
+                onClick={() => {
+                  if (tempApiKey.trim().length > 10) {
+                    setApiKey(tempApiKey.trim());
+                  } else {
+                    alert("Please enter a valid API Key");
+                  }
+                }}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+              >
+                {language === 'ko' ? '시작하기' : 'Start Analysis'} <ChevronDown className="w-4 h-4 rotate-[-90deg]" />
+              </button>
+
+              <p className="text-xs text-center text-slate-400 mt-4">
+                Get a key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-indigo-500 hover:underline">Google AI Studio</a>.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {apiKey && step === 1 && (
           <UploadSection
             t={t}
             industry={selectedIndustry}
@@ -758,14 +803,16 @@ export default function App() {
             setTextInput={setTextInput}
             error={error}
             onAnalyze={handleAnalyze}
+            temperature={temperature}
+            setTemperature={setTemperature}
           />
         )}
 
-        {step === 2 && (
+        {apiKey && step === 2 && (
           <AnalyzingSection industry={selectedIndustry} t={t} />
         )}
 
-        {step === 3 && result && (
+        {apiKey && step === 3 && result && (
           <ResultSection
             result={result}
             industry={selectedIndustry}
@@ -790,7 +837,8 @@ export default function App() {
 
 function UploadSection({
   t, industry, setIndustry, inputType, setInputType,
-  file, handleFileUpload, textInput, setTextInput, error, onAnalyze
+  file, handleFileUpload, textInput, setTextInput, error, onAnalyze,
+  temperature, setTemperature
 }: any) {
 
   const industries: IndustryType[] = [
@@ -926,6 +974,33 @@ function UploadSection({
               <span className="font-medium">{error}</span>
             </div>
           )}
+
+          {/* Temperature Control */}
+          <div className="mt-8 pt-8 border-t border-slate-100">
+            <div className="flex items-center justify-between mb-4">
+              <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                <Zap className="w-4 h-4 text-amber-500" />
+                AI Creativity (Temperature)
+              </label>
+              <span className="text-xs font-mono font-bold bg-slate-100 px-2 py-1 rounded text-slate-600">
+                {temperature.toFixed(1)}
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0.0"
+              max="2.0"
+              step="0.1"
+              value={temperature}
+              onChange={(e) => setTemperature(parseFloat(e.target.value))}
+              className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+            />
+            <div className="flex justify-between text-[10px] text-slate-400 mt-2 font-medium uppercase tracking-wide">
+              <span>Precise (0.0)</span>
+              <span>Balanced (1.0)</span>
+              <span>Creative (2.0)</span>
+            </div>
+          </div>
 
           <button
             onClick={onAnalyze}
