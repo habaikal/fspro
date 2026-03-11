@@ -670,7 +670,14 @@ export default function App() {
       );
 
       if (!response.ok) {
-        throw new Error(`API Error: ${response.statusText}`);
+        let errorMsg = response.statusText;
+        try {
+          const errData = await response.json();
+          if (errData.error && errData.error.message) {
+            errorMsg = errData.error.message;
+          }
+        } catch (e) {}
+        throw new Error(`API Error [${response.status}]: ${errorMsg}`);
       }
 
       const data = await response.json();
