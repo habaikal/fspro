@@ -601,6 +601,15 @@ export default function App() {
       const jsonText = response.replace(/```json/g, '').replace(/```/g, '').trim();
       const parsedResult = JSON.parse(jsonText);
 
+      // 종합평가등급(totalScore)을 5개 평가 항목의 단순 평균으로 재계산
+      // 데이터 오류 방지: 기술(82) + 시장(85) + 재무(74) + 사업모델(80) + 리스크(70) = 391 / 5 = 78.2
+      if (parsedResult.dimensions && parsedResult.dimensions.length > 0) {
+        const scores = parsedResult.dimensions.map((d: any) => d.score || 0);
+        const totalSum = scores.reduce((sum: number, score: number) => sum + score, 0);
+        const averageScore = Math.round((totalSum / scores.length) * 10) / 10; // 소수점 첫째 자리까지 반올림
+        parsedResult.totalScore = averageScore;
+      }
+
       setResult(parsedResult);
       setStep(3);
 
