@@ -215,8 +215,8 @@ In order to be iterable, non-array objects must have a [Symbol.iterator]() metho
     Analyze the provided business plan based on "Business Feasibility Theory" and "Industry Evaluation Models".
 
     [CRITICAL INSTRUCTION]
-    1. **CONSISTENCY**: You MUST act deterministically. The same input should yield the same scores.
-    2. **LANGUAGE**: You MUST generate the entire JSON response content in **${t}**.
+    1. **CONSISTENCY**: You MUST act deterministically. The same input MUST yield the EXACT SAME scores, regardless of language. Do NOT change scores based on translation or language. All dimension scores MUST be identical for identical business content.
+    2. **LANGUAGE**: You MUST generate the entire JSON response content in **${t}**. Only translate text fields (name, summary, reasoning, improvements, etc). DO NOT alter scores or grades based on language.
     3. **INDUSTRY CONTEXT**: This is a ${e} venture. Pay special attention to: ${r.focusAreas.join(", ")}.
     4. **SCORING RUBRIC** (${e}-specific):
 ${o}
