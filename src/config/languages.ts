@@ -90,6 +90,7 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationStrings> = {
       'Clean Energy': 'Clean Energy',
       'Aerospace/Manufacturing': 'Manufacturing',
       'Content/Media': 'Content/Media',
+      'Civil/Construction': 'Civil/Construction',
       'General/Other': 'General'
     },
     comments: {
@@ -134,6 +135,7 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationStrings> = {
       'Clean Energy': '클린 에너지',
       'Aerospace/Manufacturing': '제조/항공',
       'Content/Media': '콘텐츠/미디어',
+      'Civil/Construction': '토목/건축',
       'General/Other': '일반/기타'
     },
     comments: {
@@ -178,6 +180,7 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationStrings> = {
       'Clean Energy': 'クリーンエネ',
       'Aerospace/Manufacturing': '製造/航空',
       'Content/Media': 'コンテンツ',
+      'Civil/Construction': '土木/建設',
       'General/Other': '一般/その他'
     },
     comments: {
@@ -222,6 +225,7 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationStrings> = {
       'Clean Energy': '清洁能源',
       'Aerospace/Manufacturing': '制造/航空',
       'Content/Media': '内容/媒体',
+      'Civil/Construction': '土木/建筑',
       'General/Other': '通用/其他'
     },
     comments: {
@@ -266,6 +270,7 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationStrings> = {
       'Clean Energy': 'Saubere Energie',
       'Aerospace/Manufacturing': 'Fertigung',
       'Content/Media': 'Medien',
+      'Civil/Construction': 'Bauwesen',
       'General/Other': 'Allgemein'
     },
     comments: {
@@ -310,6 +315,7 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationStrings> = {
       'Clean Energy': 'Énergie Propre',
       'Aerospace/Manufacturing': 'Industrie',
       'Content/Media': 'Médias',
+      'Civil/Construction': 'Génie civil',
       'General/Other': 'Général'
     },
     comments: {
@@ -354,6 +360,7 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationStrings> = {
       'Clean Energy': 'Energía Limpia',
       'Aerospace/Manufacturing': 'Manufactura',
       'Content/Media': 'Medios',
+      'Civil/Construction': 'Construcción',
       'General/Other': 'General'
     },
     comments: {
@@ -398,6 +405,7 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationStrings> = {
       'Clean Energy': 'Energia Pulita',
       'Aerospace/Manufacturing': 'Manifattura',
       'Content/Media': 'Media',
+      'Civil/Construction': 'Costruzioni',
       'General/Other': 'Generale'
     },
     comments: {
@@ -442,6 +450,7 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationStrings> = {
       'Clean Energy': 'Энергетика',
       'Aerospace/Manufacturing': 'Производство',
       'Content/Media': 'Медиа',
+      'Civil/Construction': 'Строительство',
       'General/Other': 'Общее'
     },
     comments: {
