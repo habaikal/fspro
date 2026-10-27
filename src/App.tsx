@@ -364,11 +364,15 @@ export default function App() {
       {/* App Navigation Bar */}
       <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-50 shadow-lg print:hidden">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-lg flex items-center justify-center text-white font-bold shadow-inner">
+          <div
+            onClick={handleReset}
+            className="flex items-center gap-3 cursor-pointer select-none group"
+            title={language === 'ko' ? '홈으로 이동 (초기화)' : 'Go to Home (Reset)'}
+          >
+            <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-lg flex items-center justify-center text-white font-bold shadow-inner group-hover:scale-105 transition-transform">
               <TrendingUp className="w-5 h-5" />
             </div>
-            <h1 className="text-xl font-bold text-white tracking-wide">
+            <h1 className="text-xl font-bold text-white tracking-wide group-hover:text-indigo-200 transition-colors">
               {t.app_name} <span className="text-indigo-400 font-light">{t.app_sub}</span>
             </h1>
           </div>
@@ -509,6 +513,13 @@ export default function App() {
             temperature={temperature}
             setTemperature={setTemperature}
             onOpenKeyModal={() => setIsApiKeyModalOpen(true)}
+            onReset={handleReset}
+            onSaveKey={(newKey: string) => {
+              setApiKey(newKey);
+              setTempApiKey(newKey);
+              localStorage.setItem('fspro_gemini_key', newKey);
+              setError(null);
+            }}
           />
         )}
 
@@ -563,8 +574,11 @@ export default function App() {
 function UploadSection({
   t, industry, setIndustry, inputType, setInputType,
   file, handleFileUpload, textInput, setTextInput, error, onAnalyze,
-  temperature, setTemperature, onOpenKeyModal
+  temperature, setTemperature, onOpenKeyModal, onReset, onSaveKey
 }: any) {
+  const [inlineKey, setInlineKey] = useState('');
+  const [showInlineKey, setShowInlineKey] = useState(false);
+  const [inlineError, setInlineError] = useState('');
 
   const industries: IndustryType[] = [
     'AI/Data', 'Blockchain/Fintech', 'Bio/Healthcare',
@@ -694,22 +708,109 @@ function UploadSection({
           </div>
 
           {error && (
-            <div className="mt-6 p-4 sm:p-5 bg-rose-50 text-rose-800 rounded-2xl border border-rose-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2">
-              <div className="flex items-start gap-3 flex-1">
-                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-rose-600" />
-                <div className="space-y-1">
-                  <span className="font-bold text-rose-900 block text-sm sm:text-base">API Error</span>
-                  <p className="text-xs sm:text-sm text-rose-700 leading-relaxed break-words">{error}</p>
+            <div className="mt-6 p-5 sm:p-6 bg-rose-50 text-rose-800 rounded-3xl border-2 border-rose-200 shadow-md space-y-4 animate-in fade-in slide-in-from-top-2">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3 flex-1">
+                  <div className="w-10 h-10 rounded-xl bg-rose-100 border border-rose-200 flex items-center justify-center shrink-0 text-rose-600 mt-0.5 shadow-sm">
+                    <AlertCircle className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-rose-900 text-base">API Error</span>
+                      <span className="text-[11px] font-semibold bg-rose-200/80 text-rose-800 px-2 py-0.5 rounded-full">
+                        {t.api_key_settings}
+                      </span>
+                    </div>
+                    <p className="text-xs sm:text-sm text-rose-700 leading-relaxed break-words font-medium">
+                      {error}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Action Buttons: Return to Home (Reset) & Re-enter Key */}
+                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                  <button
+                    type="button"
+                    onClick={onReset}
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-sm active:scale-95 cursor-pointer"
+                    title={t.btn_go_home}
+                  >
+                    <RefreshCw className="w-4 h-4 text-slate-500" />
+                    <span>{t.btn_go_home}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onOpenKeyModal}
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs sm:text-sm font-bold transition-all shadow-md active:scale-95 cursor-pointer"
+                  >
+                    <Key className="w-4 h-4" />
+                    <span>{t.api_key_reenter}</span>
+                  </button>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={onOpenKeyModal}
-                className="shrink-0 w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs sm:text-sm font-bold transition-all shadow hover:shadow-md active:scale-95 cursor-pointer"
-              >
-                <Key className="w-4 h-4" />
-                <span>{t.api_key_reenter}</span>
-              </button>
+
+              {/* Inline Direct Key Input Form */}
+              <div className="pt-3 border-t border-rose-200/80 bg-white/90 p-4 rounded-2xl border border-rose-100 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <Key className="w-3.5 h-3.5 text-indigo-600" />
+                    {t.api_key_inline_title}
+                  </label>
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    {t.api_key_desc}
+                  </span>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="relative flex-1 flex items-center">
+                    <input
+                      type={showInlineKey ? 'text' : 'password'}
+                      value={inlineKey}
+                      onChange={(e) => {
+                        setInlineKey(e.target.value);
+                        if (inlineError) setInlineError('');
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          if (inlineKey.trim().length > 10) {
+                            onSaveKey(inlineKey.trim());
+                            setInlineKey('');
+                          } else {
+                            setInlineError(t.api_key_invalid);
+                          }
+                        }
+                      }}
+                      placeholder="AIzaSy... (Gemini API Key)"
+                      className="w-full px-4 py-2.5 pr-10 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all shadow-inner"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowInlineKey(!showInlineKey)}
+                      className="absolute right-3 text-slate-400 hover:text-slate-600 p-1"
+                      title={showInlineKey ? 'Hide Key' : 'Show Key'}
+                    >
+                      {showInlineKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (inlineKey.trim().length > 10) {
+                        onSaveKey(inlineKey.trim());
+                        setInlineKey('');
+                      } else {
+                        setInlineError(t.api_key_invalid);
+                      }
+                    }}
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs sm:text-sm font-bold transition-all shadow hover:shadow-md active:scale-95 shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    <span>{t.api_key_apply}</span>
+                  </button>
+                </div>
+                {inlineError && (
+                  <p className="text-xs text-rose-600 font-semibold">{inlineError}</p>
+                )}
+              </div>
             </div>
           )}
 

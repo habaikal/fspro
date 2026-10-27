@@ -53,6 +53,9 @@ export interface TranslationStrings {
   api_key_clear: string;
   api_key_close: string;
   api_key_invalid: string;
+  btn_go_home: string;
+  api_key_inline_title: string;
+  api_key_apply: string;
   industries: Record<string, string>;
   comments: {
     tech: string;
@@ -99,6 +102,9 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationStrings> = {
     api_key_clear: "Reset Key",
     api_key_close: "Close",
     api_key_invalid: "Please enter a valid API Key (at least 10 characters).",
+    btn_go_home: "Return to Home (Reset)",
+    api_key_inline_title: "Enter New API Key Directly",
+    api_key_apply: "Apply Key",
     industries: {
       'AI/Data': 'AI & Data',
       'Blockchain/Fintech': 'Fintech',
@@ -152,6 +158,9 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationStrings> = {
     api_key_clear: "키 초기화",
     api_key_close: "닫기",
     api_key_invalid: "유효한 API Key를 입력해주세요 (10자 이상).",
+    btn_go_home: "메인으로 돌아가기 (초기화)",
+    api_key_inline_title: "새로운 API Key 직접 입력",
+    api_key_apply: "적용하기",
     industries: {
       'AI/Data': 'AI/데이터',
       'Blockchain/Fintech': '핀테크/블록체인',
@@ -205,6 +214,9 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationStrings> = {
     api_key_clear: "キーの初期化",
     api_key_close: "閉じる",
     api_key_invalid: "有効なAPIキーを入力してください (10文字以上)。",
+    btn_go_home: "ホームに戻る (リセット)",
+    api_key_inline_title: "新しいAPIキーを直接入力",
+    api_key_apply: "適用",
     industries: {
       'AI/Data': 'AI/データ',
       'Blockchain/Fintech': 'フィンテック',
@@ -258,6 +270,9 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationStrings> = {
     api_key_clear: "清除密钥",
     api_key_close: "关闭",
     api_key_invalid: "请输入有效的API密钥（至少10个字符）。",
+    btn_go_home: "返回主页 (重置)",
+    api_key_inline_title: "直接输入新API密钥",
+    api_key_apply: "应用",
     industries: {
       'AI/Data': '人工智能/数据',
       'Blockchain/Fintech': '金融科技',
@@ -311,6 +326,9 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationStrings> = {
     api_key_clear: "Schlüssel zurücksetzen",
     api_key_close: "Schließen",
     api_key_invalid: "Bitte geben Sie einen gültigen API-Schlüssel ein (mind. 10 Zeichen).",
+    btn_go_home: "Zurück zur Startseite (Reset)",
+    api_key_inline_title: "Neuen API-Schlüssel direkt eingeben",
+    api_key_apply: "Anwenden",
     industries: {
       'AI/Data': 'KI/Daten',
       'Blockchain/Fintech': 'Fintech',
@@ -364,6 +382,9 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationStrings> = {
     api_key_clear: "Réinitialiser",
     api_key_close: "Fermer",
     api_key_invalid: "Veuillez entrer une clé API valide (au moins 10 caractères).",
+    btn_go_home: "Retour à l'accueil (Réinitialiser)",
+    api_key_inline_title: "Entrer directement la nouvelle clé API",
+    api_key_apply: "Appliquer",
     industries: {
       'AI/Data': 'IA/Données',
       'Blockchain/Fintech': 'Fintech',
@@ -417,6 +438,9 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationStrings> = {
     api_key_clear: "Restablecer clave",
     api_key_close: "Cerrar",
     api_key_invalid: "Ingrese una clave API válida (al menos 10 caracteres).",
+    btn_go_home: "Volver al inicio (Restablecer)",
+    api_key_inline_title: "Ingresar nueva clave API directamente",
+    api_key_apply: "Aplicar",
     industries: {
       'AI/Data': 'IA/Datos',
       'Blockchain/Fintech': 'Fintech',
@@ -470,6 +494,9 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationStrings> = {
     api_key_clear: "Reimposta chiave",
     api_key_close: "Chiudi",
     api_key_invalid: "Inserisci una chiave API valida (almeno 10 caratteri).",
+    btn_go_home: "Torna alla Home (Reimposta)",
+    api_key_inline_title: "Inserisci nuova chiave API direttamente",
+    api_key_apply: "Applica",
     industries: {
       'AI/Data': 'IA/Dati',
       'Blockchain/Fintech': 'Fintech',
@@ -523,6 +550,9 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationStrings> = {
     api_key_clear: "Сбросить ключ",
     api_key_close: "Закрыть",
     api_key_invalid: "Пожалуйста, введите корректный API-ключ (не менее 10 символов).",
+    btn_go_home: "На главную (Сброс)",
+    api_key_inline_title: "Ввести новый API-ключ напрямую",
+    api_key_apply: "Применить",
     industries: {
       'AI/Data': 'ИИ/Данные',
       'Blockchain/Fintech': 'Финтех',
