@@ -339,7 +339,11 @@ export default function App() {
           // 모든 모델이 실패했을 때 에러 메시지 구성
           let userFriendlyMsg = errorDetails ? `API Error (${response.status}): ${errorDetails}` : `API Error (${response.status})`;
 
-          if (response.status === 403) {
+          if (response.status === 402 || lowerMsg.includes('prepayment') || lowerMsg.includes('depleted')) {
+            userFriendlyMsg = language === 'ko'
+              ? `[Google AI Studio 선불 크레딧 소진 (HTTP 402)]\n현재 연결된 구글 프로젝트의 선불 잔액이 $0입니다.\n\n💡 해결 방법 (완전 무료 이용 팁):\nGoogle AI Studio(aistudio.google.com)에서 'Create API key in new project(새 프로젝트에 키 생성)'를 선택하여 결제가 연결되지 않은 '무료 티어(Free Tier)' 키를 새로 발급받으시면 무료로 즉시 분석을 이용하실 수 있습니다!`
+              : `[Google Prepayment Depleted (HTTP 402)]\nYour project's prepaid wallet is empty ($0).\n\n💡 How to resolve (Free Tier tip):\nGo to Google AI Studio (aistudio.google.com) and create an API Key with 'Create API key in new project' without billing attached to use the 100% Free Tier!`;
+          } else if (response.status === 403) {
             userFriendlyMsg = language === 'ko'
               ? `API 접근 권한 오류 (HTTP 403): ${errorDetails}. Google AI Studio(aistudio.google.com)에서 새로 발급받은 Gemini API 키인지 확인해주세요.`
               : `API Access Forbidden (HTTP 403): ${errorDetails}. Please ensure your API key from Google AI Studio is active.`;
@@ -600,6 +604,20 @@ function UploadSection({
   const [inlineKey, setInlineKey] = useState('');
   const [showInlineKey, setShowInlineKey] = useState(false);
   const [inlineError, setInlineError] = useState('');
+  const [keySuccessMsg, setKeySuccessMsg] = useState('');
+
+  const handleApplyInlineKey = () => {
+    const trimmed = inlineKey.trim();
+    if (trimmed.length > 10) {
+      onSaveKey(trimmed);
+      setInlineKey('');
+      setInlineError('');
+      setKeySuccessMsg('새 Gemini API Key가 성공적으로 등록되었습니다!');
+      setTimeout(() => setKeySuccessMsg(''), 6000);
+    } else {
+      setInlineError(t.api_key_invalid);
+    }
+  };
 
   const industries: IndustryType[] = [
     'AI/Data', 'Blockchain/Fintech', 'Bio/Healthcare',
@@ -728,6 +746,28 @@ function UploadSection({
             )}
           </div>
 
+          {/* Key Applied Success Banner */}
+          {keySuccessMsg && (
+            <div className="mt-6 p-4 bg-emerald-50 text-emerald-800 rounded-2xl border-2 border-emerald-200 shadow-md flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-emerald-100 border border-emerald-300 flex items-center justify-center text-emerald-600 shrink-0 font-bold">
+                  ✓
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-emerald-900">{keySuccessMsg}</p>
+                  <p className="text-xs text-emerald-700">이제 아래의 [전문가 분석 리포트 생성] 버튼을 누르면 새 키로 분석이 시작됩니다.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setKeySuccessMsg('')}
+                className="text-xs text-emerald-600 hover:text-emerald-800 p-1 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
           {error && (
             <div className="mt-6 p-5 sm:p-6 bg-rose-50 text-rose-800 rounded-3xl border-2 border-rose-200 shadow-md space-y-4 animate-in fade-in slide-in-from-top-2">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -742,7 +782,7 @@ function UploadSection({
                         {t.api_key_settings}
                       </span>
                     </div>
-                    <p className="text-xs sm:text-sm text-rose-700 leading-relaxed break-words font-medium">
+                    <p className="text-xs sm:text-sm text-rose-700 leading-relaxed break-words font-medium whitespace-pre-line">
                       {error}
                     </p>
                   </div>
@@ -770,6 +810,37 @@ function UploadSection({
                 </div>
               </div>
 
+              {/* 402 Prepayment Dedicated Guidance Box */}
+              {(error.includes('402') || error.includes('prepayment') || error.includes('선불')) && (
+                <div className="p-4 bg-amber-50/90 border border-amber-300 rounded-2xl text-amber-950 space-y-2 text-xs">
+                  <div className="flex items-center gap-1.5 font-bold text-amber-900 text-sm">
+                    <span>💡 왜 새로 발급받은 키도 여전히 402 오류가 날까요?</span>
+                  </div>
+                  <p className="leading-relaxed text-amber-900">
+                    Google AI Studio에서 키를 발급받을 때 <strong>기존 결제(Google Cloud) 프로젝트</strong>를 선택했기 때문입니다. 선불 충전 잔액이 $0이라서 새 키를 발급해도 프로젝트 단위로 차단됩니다.
+                  </p>
+                  <div className="p-3 bg-white/80 rounded-xl border border-amber-200 space-y-1.5 font-sans">
+                    <p className="font-bold text-slate-900">✅ 100% 무료 티어로 즉시 해결하는 방법 (30초 소요):</p>
+                    <ol className="list-decimal list-inside space-y-1 text-slate-700 leading-relaxed">
+                      <li>아래 버튼을 눌러 Google AI Studio 키 발급 페이지로 이동합니다.</li>
+                      <li><strong>[Create API key]</strong> 버튼을 누른 후, 반드시 <strong>&quot;Create API key in new project (새 프로젝트에서 만들기)&quot;</strong>를 선택하세요! (기존 프로젝트 선택 ❌)</li>
+                      <li>새로 발급된 키를 복사하여 아래 입력창에 넣고 <strong>[적용하기]</strong>를 클릭하세요.</li>
+                    </ol>
+                  </div>
+                  <div className="pt-1">
+                    <a
+                      href="https://aistudio.google.com/app/apikey"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer"
+                    >
+                      <span>Google AI Studio에서 &quot;새 프로젝트&quot; 무료 API Key 발급받기</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                </div>
+              )}
+
               {/* Inline Direct Key Input Form */}
               <div className="pt-3 border-t border-rose-200/80 bg-white/90 p-4 rounded-2xl border border-rose-100 space-y-2">
                 <div className="flex items-center justify-between">
@@ -792,15 +863,10 @@ function UploadSection({
                       }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
-                          if (inlineKey.trim().length > 10) {
-                            onSaveKey(inlineKey.trim());
-                            setInlineKey('');
-                          } else {
-                            setInlineError(t.api_key_invalid);
-                          }
+                          handleApplyInlineKey();
                         }
                       }}
-                      placeholder="AIzaSy... (Gemini API Key)"
+                      placeholder="AIzaSy... (새로 발급받은 Gemini API Key 붙여넣기)"
                       className="w-full px-4 py-2.5 pr-10 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all shadow-inner"
                     />
                     <button
@@ -814,14 +880,7 @@ function UploadSection({
                   </div>
                   <button
                     type="button"
-                    onClick={() => {
-                      if (inlineKey.trim().length > 10) {
-                        onSaveKey(inlineKey.trim());
-                        setInlineKey('');
-                      } else {
-                        setInlineError(t.api_key_invalid);
-                      }
-                    }}
+                    onClick={handleApplyInlineKey}
                     className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs sm:text-sm font-bold transition-all shadow hover:shadow-md active:scale-95 shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <CheckCircle className="w-4 h-4" />
