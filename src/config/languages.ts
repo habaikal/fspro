@@ -63,6 +63,17 @@ export interface TranslationStrings {
     fin: string;
     risk: string;
   };
+  mode_api?: string;
+  mode_web?: string;
+  mode_web_desc?: string;
+  btn_copy_prompt?: string;
+  btn_prompt_copied?: string;
+  btn_visualize_report?: string;
+  btn_load_sample?: string;
+  btn_switch_to_web?: string;
+  web_step_1?: string;
+  web_step_2?: string;
+  web_step_3?: string;
 }
 
 export const TRANSLATIONS: Record<LanguageCode, TranslationStrings> = {
@@ -120,7 +131,18 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationStrings> = {
       market: "Market Strategy",
       fin: "Financial Projection",
       risk: "Risk & Compliance"
-    }
+    },
+    mode_api: "Real-time API",
+    mode_web: "Web AI Mode (No Key Needed)",
+    mode_web_desc: "Analyze 100% free with external AI chatbots (Gemini, ChatGPT, Claude) without an API Key.",
+    btn_copy_prompt: "Copy AI Prompt",
+    btn_prompt_copied: "Prompt Copied! Paste into AI",
+    btn_visualize_report: "Visualize Report",
+    btn_load_sample: "Load Sample Demo",
+    btn_switch_to_web: "Switch to Free Web AI Mode (No Key)",
+    web_step_1: "1. Copy Analysis Prompt",
+    web_step_2: "2. Open Free AI Chatbot",
+    web_step_3: "3. Paste AI Response & Generate"
   },
   ko: {
     app_name: "FS",
@@ -176,7 +198,18 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationStrings> = {
       market: "시장 진입 전략",
       fin: "재무 건전성 및 ROI",
       risk: "규제 및 리스크 관리"
-    }
+    },
+    mode_api: "실시간 API 분석",
+    mode_web: "웹 AI 연동 (API 키 불필요)",
+    mode_web_desc: "API Key 없이도 무료 웹 챗봇(Gemini 웹, ChatGPT, Claude)을 통해 100% 무료 무제한 분석이 가능합니다.",
+    btn_copy_prompt: "분석 프롬프트 복사하기",
+    btn_prompt_copied: "프롬프트가 복사되었습니다! AI 창에 붙여넣으세요",
+    btn_visualize_report: "분석 리포트 시각화하기",
+    btn_load_sample: "체험용 샘플 데이터 불러오기",
+    btn_switch_to_web: "API 키 없는 웹 AI 무료 모드로 전환 ➔",
+    web_step_1: "1. 분석 프롬프트 복사",
+    web_step_2: "2. 무료 AI 사이트로 이동",
+    web_step_3: "3. AI 답변 붙여넣기 및 리포트 생성"
   },
   ja: {
     app_name: "FS",

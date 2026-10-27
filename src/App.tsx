@@ -3,13 +3,15 @@ import {
   CheckCircle, AlertCircle, TrendingUp, Zap, Loader2,
   Briefcase, File as FileIcon, RefreshCw, Download,
   Bookmark, Layers, Globe, ChevronDown, Printer, Upload,
-  Key, Eye, EyeOff, X, ExternalLink
+  Key, Eye, EyeOff, X, ExternalLink, Sparkles, Copy,
+  MessageSquare, Bot
 } from 'lucide-react';
 import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ResponsiveContainer
 } from 'recharts';
 import { LANGUAGES, TRANSLATIONS, LanguageCode } from './config/languages';
+import { getSampleEvaluation } from './config/sampleData';
 
 /**
  * GEMINI API CONFIGURATION
@@ -64,6 +66,7 @@ export default function App() {
   const [inputType, setInputType] = useState<'file' | 'text'>('file');
   const [result, setResult] = useState<EvaluationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [analysisMode, setAnalysisMode] = useState<'api' | 'web'>('api');
   const [isDownloading, setIsDownloading] = useState(false);
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
   const [libStatus, setLibStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -228,6 +231,170 @@ export default function App() {
     setResult(null);
     setStep(1);
     setError(null);
+  };
+
+  // 체험용 샘플 리포트 즉시 로드 (원클릭 체험)
+  const handleLoadSampleReport = () => {
+    const sample = getSampleEvaluation(language);
+    setResult(sample);
+    setStep(3);
+    setError(null);
+  };
+
+  // 외부 AI(Gemini 웹, ChatGPT, Claude 등)의 답변 텍스트에서 JSON 추출 및 파싱
+  const handleVisualizeWebAiResult = (rawText: string) => {
+    if (!rawText.trim()) {
+      setError(language === 'ko' ? "AI 챗봇의 분석 답변 내용을 붙여넣어주세요." : "Please paste the AI response content.");
+      return;
+    }
+    try {
+      let jsonStr = '';
+      const codeBlockMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      if (codeBlockMatch && codeBlockMatch[1]) {
+        jsonStr = codeBlockMatch[1].trim();
+      } else {
+        const firstBrace = rawText.indexOf('{');
+        const lastBrace = rawText.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+          jsonStr = rawText.substring(firstBrace, lastBrace + 1);
+        } else {
+          jsonStr = rawText.trim();
+        }
+      }
+
+      const parsed = JSON.parse(jsonStr);
+
+      if (!parsed.dimensions || !Array.isArray(parsed.dimensions) || parsed.dimensions.length === 0) {
+        throw new Error(
+          language === 'ko'
+            ? "분석 결과에서 5대 지표(dimensions)를 찾을 수 없습니다. AI가 생성한 전체 JSON을 그대로 붙여넣어주세요."
+            : "Could not find valid 'dimensions' in the parsed JSON. Please paste the full AI output."
+        );
+      }
+
+      // 산술 평균 기반 종합 점수 보정
+      const sum = parsed.dimensions.reduce((acc: number, curr: any) => acc + (Number(curr.score) || 0), 0);
+      const avg = sum / parsed.dimensions.length;
+      parsed.totalScore = Number.isInteger(avg) ? avg : parseFloat(avg.toFixed(1));
+
+      setResult(parsed);
+      setStep(3);
+      setError(null);
+    } catch (err: any) {
+      console.error(err);
+      setError(
+        language === 'ko'
+          ? `결과 파싱 오류: 올바른 JSON 형식이 아닙니다. (${err.message})\n\n💡 팁: AI 챗봇이 생성한 답변 전체를 그대로 복사해 붙여넣으시거나, 아래 [체험용 샘플 데이터 불러오기]를 시도해보세요.`
+          : `Parse Error: Invalid JSON structure (${err.message}).\n\n💡 Tip: Please paste the full response from AI or click 'Load Sample Demo'.`
+      );
+    }
+  };
+
+  // 외부 AI 챗봇에 전달할 정밀 분석 프롬프트 생성
+  const buildAnalysisPrompt = async (): Promise<string> => {
+    let planText = textInput.trim();
+    if (inputType === 'file' && file) {
+      if (file.type === 'text/plain' || file.name.endsWith('.md') || file.name.endsWith('.txt')) {
+        planText = await fileToText(file);
+      } else {
+        planText = `[첨부 파일명: ${file.name}] (PDF 파일인 경우 텍스트를 복사하거나 PDF 내용을 요약하여 입력해주세요)`;
+      }
+    }
+
+    const selectedLangName = LANGUAGES.find(l => l.code === language)?.name || 'Korean';
+
+    return `당신은 ${selectedIndustry} 분야 전문 글로벌 전략 컨설팅 펌(McKinsey/BCG)의 수석 파트너입니다.
+아래 제공된 사업계획서(또는 사업 아이디어)를 "사업 타당성 분석 이론" 및 "업종별 정량 평가 모델"에 입각하여 매우 객관적이고 날카롭게 심층 실사(Due Diligence)해주세요.
+
+[사업계획서 내용]
+${planText || "(구체적인 사업 아이템 및 계획서 요약)"}
+
+[핵심 지침]
+1. 언어: 모든 분석 내용, 설명, 개선 방안은 반드시 **${selectedLangName}**로 작성해야 합니다.
+2. 채점 기준:
+   - S (90-100점): 글로벌 혁신성, 검증된 특허/매출, 강력한 해자
+   - A (80-89점): 명확한 차별성, 프로토타입 완료, 가시적인 시장 기회
+   - B (70-79점): 일반적인 솔루션, 성장 시장, 가설 검증 단계
+   - C (60-69점): 과밀 경쟁, 약한 진입장벽, 미검증 재무 모델
+   - D (0-59점): 논리적 결함, 축소 시장, 규제 리스크
+3. 출력 형식: 다른 서두나 사족 없이, **반드시 아래 JSON 스키마 그대로 유효한 JSON 형식으로만** 응답해주세요.
+
+\`\`\`json
+{
+  "businessName": "추출 또는 제안된 사업명",
+  "summary": "경영진 요약 보고서 (3~5문장)",
+  "totalScore": 85,
+  "dimensions": [
+    {
+      "id": "tech",
+      "name": "기술성 (Technology)",
+      "score": 88,
+      "grade": "A",
+      "weight": 0.3,
+      "reasoning": "기술적 차별성과 실현 가능성에 대한 객관적 평가",
+      "improvements": "기술 경쟁력 확보를 위한 구체적 실행 액션"
+    },
+    {
+      "id": "market",
+      "name": "시장성 (Market Opportunity)",
+      "score": 85,
+      "grade": "A",
+      "weight": 0.25,
+      "reasoning": "목표 시장 규모 및 성장성 평가",
+      "improvements": "시장 점유율 확대를 위한 GTM 제언"
+    },
+    {
+      "id": "finance",
+      "name": "재무성 (Financial Viability)",
+      "score": 80,
+      "grade": "A",
+      "weight": 0.2,
+      "reasoning": "수익성, 마진 구조, 손익분기점(BEP) 달성 가능성",
+      "improvements": "현금흐름 및 수익성 개선 방안"
+    },
+    {
+      "id": "biz",
+      "name": "사업모델 (Business Model)",
+      "score": 86,
+      "grade": "A",
+      "weight": 0.15,
+      "reasoning": "비즈니스 모델의 지속 가능성 및 락인(Lock-in) 효과",
+      "improvements": "BM 다각화 및 객단가 상향 제언"
+    },
+    {
+      "id": "risk",
+      "name": "리스크 관리 (Risk & Feasibility)",
+      "score": 82,
+      "grade": "A",
+      "weight": 0.1,
+      "reasoning": "법적/규제, 인허가, 기술 대체 리스크 평가",
+      "improvements": "선제적 리스크 헤징 방안"
+    }
+  ],
+  "expertCommentary": {
+    "technical": "기술 실사(Tech DD) 전문 의견",
+    "market": "시장 진입 전략 전문 의견",
+    "financial": "재무 전망 및 밸류에이션 의견",
+    "policy": "규제 및 정책 지원 연계 의견"
+  },
+  "recommendations": [
+    "핵심 권고 전략 1",
+    "핵심 권고 전략 2",
+    "핵심 권고 전략 3"
+  ],
+  "swot": {
+    "strengths": ["강점 1", "강점 2"],
+    "weaknesses": ["약점 1", "약점 2"],
+    "opportunities": ["기회 1", "기회 2"],
+    "threats": ["위협 1", "위협 2"]
+  },
+  "kpis": [
+    "핵심 성과 지표 1",
+    "핵심 성과 지표 2",
+    "핵심 성과 지표 3"
+  ]
+}
+\`\`\``;
   };
 
   // --- Helpers ---
@@ -477,52 +644,86 @@ export default function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-12 print:p-0">
-        {!apiKey && (
-          <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg border border-slate-200 p-8 text-center animate-in fade-in zoom-in duration-300">
-            <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6 text-indigo-600">
+        {!apiKey && analysisMode !== 'web' && (
+          <div className="max-w-md mx-auto bg-white rounded-2xl shadow-xl border border-slate-200 p-8 text-center animate-in fade-in zoom-in duration-300 space-y-6">
+            <div className="w-16 h-16 bg-gradient-to-tr from-indigo-500 to-indigo-700 text-white rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-indigo-200">
               <Zap className="w-8 h-8" />
             </div>
-            <h2 className="text-2xl font-bold text-slate-800 mb-2">Welcome to FS Pro</h2>
-            <p className="text-slate-500 mb-6">
-              {language === 'ko' ? '서비스 이용을 위해 Gemini API Key를 입력해주세요.' : 'Please enter your Gemini API Key to continue.'}
-            </p>
+            <div>
+              <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Welcome to FS Pro</h2>
+              <p className="text-sm text-slate-500 mt-1">
+                {language === 'ko' ? '초정밀 사업 타당성 평가 솔루션' : 'Strategic Feasibility Study Intelligence'}
+              </p>
+            </div>
 
-            <div className="space-y-4 text-left">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Gemini API Key</label>
+            <div className="space-y-4 text-left pt-2">
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5 text-indigo-600" />
+                  Gemini API Key
+                </label>
                 <input
                   type="password"
                   value={tempApiKey}
                   onChange={(e) => setTempApiKey(e.target.value)}
-                  placeholder="AIzaSy..."
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                  placeholder="AIzaSy... (Gemini API Key)"
+                  className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all shadow-inner"
                 />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (tempApiKey.trim().length > 10) {
+                      const key = tempApiKey.trim();
+                      setApiKey(key);
+                      localStorage.setItem('fspro_gemini_key', key);
+                      setError(null);
+                    } else {
+                      alert(t.api_key_invalid);
+                    }
+                  }}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 text-sm shadow hover:shadow-md cursor-pointer"
+                >
+                  <span>{language === 'ko' ? 'API Key로 자동 분석 시작' : 'Start with API Key'}</span>
+                  <ChevronDown className="w-4 h-4 rotate-[-90deg]" />
+                </button>
               </div>
 
+              <div className="relative py-2">
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200"></div></div>
+                <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-3 font-bold text-slate-400">{language === 'ko' ? '또는 (API 키가 없으신가요?)' : 'OR (NO API KEY)'}</span></div>
+              </div>
+
+              {/* No Key Web AI Mode Button */}
               <button
+                type="button"
                 onClick={() => {
-                  if (tempApiKey.trim().length > 10) {
-                    const key = tempApiKey.trim();
-                    setApiKey(key);
-                    localStorage.setItem('fspro_gemini_key', key);
-                    setError(null);
-                  } else {
-                    alert(t.api_key_invalid);
-                  }
+                  setAnalysisMode('web');
+                  setError(null);
                 }}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2.5 text-sm shadow-md hover:shadow-lg active:scale-95 cursor-pointer border border-slate-800"
               >
-                {language === 'ko' ? '시작하기' : 'Start Analysis'} <ChevronDown className="w-4 h-4 rotate-[-90deg]" />
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                <span>{language === 'ko' ? 'API Key 없이 무료로 시작하기 (Gemini/ChatGPT 연동)' : 'Start Free without API Key (Web AI Mode)'}</span>
               </button>
 
-              <p className="text-xs text-center text-slate-400 mt-4">
-                Get a key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-indigo-500 hover:underline">Google AI Studio</a>.
+              {/* Demo Sample Report Button */}
+              <button
+                type="button"
+                onClick={handleLoadSampleReport}
+                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 text-xs cursor-pointer border border-slate-200"
+              >
+                <Eye className="w-3.5 h-3.5 text-slate-500" />
+                <span>{language === 'ko' ? '체험용 샘플 리포트 바로보기 (클릭 1초)' : 'Preview Sample Report Demo'}</span>
+              </button>
+
+              <p className="text-[11px] text-center text-slate-400 pt-2">
+                Get a free key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline font-semibold">Google AI Studio</a>.
               </p>
             </div>
           </div>
         )}
 
-        {apiKey && step === 1 && (
+        {(Boolean(apiKey) || analysisMode === 'web') && step === 1 && (
           <UploadSection
             t={t}
             industry={selectedIndustry}
@@ -545,14 +746,20 @@ export default function App() {
               localStorage.setItem('fspro_gemini_key', newKey);
               setError(null);
             }}
+            analysisMode={analysisMode}
+            setAnalysisMode={setAnalysisMode}
+            onBuildPrompt={buildAnalysisPrompt}
+            onVisualizeWebResult={handleVisualizeWebAiResult}
+            onLoadSample={handleLoadSampleReport}
+            language={language}
           />
         )}
 
-        {apiKey && step === 2 && (
+        {step === 2 && (
           <AnalyzingSection industry={selectedIndustry} t={t} />
         )}
 
-        {apiKey && step === 3 && result && (
+        {step === 3 && result && (
           <ResultSection
             result={result}
             industry={selectedIndustry}
@@ -599,12 +806,19 @@ export default function App() {
 function UploadSection({
   t, industry, setIndustry, inputType, setInputType,
   file, handleFileUpload, textInput, setTextInput, error, onAnalyze,
-  temperature, setTemperature, onOpenKeyModal, onReset, onSaveKey
+  temperature, setTemperature, onOpenKeyModal, onReset, onSaveKey,
+  analysisMode, setAnalysisMode, onBuildPrompt, onVisualizeWebResult, onLoadSample,
+  language
 }: any) {
   const [inlineKey, setInlineKey] = useState('');
   const [showInlineKey, setShowInlineKey] = useState(false);
   const [inlineError, setInlineError] = useState('');
   const [keySuccessMsg, setKeySuccessMsg] = useState('');
+
+  // Web AI Mode local states
+  const [webPromptCopied, setWebPromptCopied] = useState(false);
+  const [webAiResponseText, setWebAiResponseText] = useState('');
+  const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
 
   const handleApplyInlineKey = () => {
     const trimmed = inlineKey.trim();
@@ -616,6 +830,20 @@ function UploadSection({
       setTimeout(() => setKeySuccessMsg(''), 6000);
     } else {
       setInlineError(t.api_key_invalid);
+    }
+  };
+
+  const handleCopyPrompt = async () => {
+    setIsGeneratingPrompt(true);
+    try {
+      const prompt = await onBuildPrompt();
+      await navigator.clipboard.writeText(prompt);
+      setWebPromptCopied(true);
+      setTimeout(() => setWebPromptCopied(false), 5000);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsGeneratingPrompt(false);
     }
   };
 
@@ -643,6 +871,37 @@ function UploadSection({
       </div>
 
       <div className="bg-white rounded-3xl shadow-2xl shadow-slate-200 border border-slate-100 overflow-hidden">
+        {/* Dual Mode Switcher Tab */}
+        <div className="flex border-b border-slate-200 bg-slate-100/70 p-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setAnalysisMode('api')}
+            className={`flex-1 py-3 px-4 rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+              analysisMode === 'api'
+                ? 'bg-white text-indigo-700 shadow-sm border border-slate-200'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+            }`}
+          >
+            <Zap className="w-4 h-4 text-amber-500" />
+            <span>{t.mode_api || '실시간 API 자동 분석'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setAnalysisMode('web')}
+            className={`flex-1 py-3 px-4 rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+              analysisMode === 'web'
+                ? 'bg-white text-indigo-700 shadow-sm border border-slate-200'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-amber-500" />
+            <span>{t.mode_web || '웹 AI 연동 (API 키 불필요)'}</span>
+            <span className="hidden sm:inline-block px-2 py-0.5 text-[10px] bg-emerald-100 text-emerald-800 rounded-full font-extrabold uppercase">
+              100% Free
+            </span>
+          </button>
+        </div>
+
         {/* Step 1: Industry */}
         <div className="p-8 border-b border-slate-100 bg-slate-50/50">
           <label className="block text-sm font-bold text-slate-900 mb-4 flex items-center gap-2 uppercase tracking-wide">
@@ -841,6 +1100,31 @@ function UploadSection({
                 </div>
               )}
 
+              {/* Switch to Web Mode Suggestion Banner */}
+              <div className="p-3.5 bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold">
+                    <Sparkles className="w-4 h-4 text-amber-300" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900">
+                      {language === 'ko' ? 'API 키 발급/쿼터 오류로 번거로우신가요?' : 'Encountering API Key or Quota issues?'}
+                    </p>
+                    <p className="text-[11px] text-slate-600">
+                      {language === 'ko' ? 'API Key 없이도 무료 웹 챗봇(Gemini 웹, ChatGPT)으로 100% 무료 무제한 분석이 가능합니다!' : 'Analyze 100% free with external web chatbots without an API Key!'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAnalysisMode('web')}
+                  className="w-full sm:w-auto px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <span>{t.btn_switch_to_web || '웹 AI 무료 모드로 전환 ➔'}</span>
+                </button>
+              </div>
+
               {/* Inline Direct Key Input Form */}
               <div className="pt-3 border-t border-rose-200/80 bg-white/90 p-4 rounded-2xl border border-rose-100 space-y-2">
                 <div className="flex items-center justify-between">
@@ -894,40 +1178,187 @@ function UploadSection({
             </div>
           )}
 
-          {/* Temperature Control */}
-          <div className="mt-8 pt-8 border-t border-slate-100">
-            <div className="flex items-center justify-between mb-4">
-              <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                <Zap className="w-4 h-4 text-amber-500" />
-                AI Creativity (Temperature)
-              </label>
-              <span className="text-xs font-mono font-bold bg-slate-100 px-2 py-1 rounded text-slate-600">
-                {temperature.toFixed(1)}
-              </span>
-            </div>
-            <input
-              type="range"
-              min="0.0"
-              max="2.0"
-              step="0.1"
-              value={temperature}
-              onChange={(e) => setTemperature(parseFloat(e.target.value))}
-              className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-            />
-            <div className="flex justify-between text-[10px] text-slate-400 mt-2 font-medium uppercase tracking-wide">
-              <span>Precise (0.0)</span>
-              <span>Balanced (1.0)</span>
-              <span>Creative (2.0)</span>
-            </div>
-          </div>
+          {/* Conditional Workflow based on analysisMode */}
+          {analysisMode === 'api' ? (
+            <div>
+              {/* Temperature Control */}
+              <div className="mt-8 pt-8 border-t border-slate-100">
+                <div className="flex items-center justify-between mb-4">
+                  <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-amber-500" />
+                    AI Creativity (Temperature)
+                  </label>
+                  <span className="text-xs font-mono font-bold bg-slate-100 px-2 py-1 rounded text-slate-600">
+                    {temperature.toFixed(1)}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0.0"
+                  max="2.0"
+                  step="0.1"
+                  value={temperature}
+                  onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                  className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                />
+                <div className="flex justify-between text-[10px] text-slate-400 mt-2 font-medium uppercase tracking-wide">
+                  <span>Precise (0.0)</span>
+                  <span>Balanced (1.0)</span>
+                  <span>Creative (2.0)</span>
+                </div>
+              </div>
 
-          <button
-            onClick={onAnalyze}
-            className="w-full mt-8 py-5 bg-slate-900 text-white rounded-xl font-bold text-lg hover:bg-slate-800 transition-all active:scale-[0.99] shadow-xl flex items-center justify-center gap-3 group"
-          >
-            <Zap className="w-5 h-5 text-yellow-400 group-hover:animate-pulse" />
-            {t.btn_analyze}
-          </button>
+              <button
+                onClick={onAnalyze}
+                className="w-full mt-8 py-5 bg-slate-900 text-white rounded-xl font-bold text-lg hover:bg-slate-800 transition-all active:scale-[0.99] shadow-xl flex items-center justify-center gap-3 group cursor-pointer"
+              >
+                <Zap className="w-5 h-5 text-yellow-400 group-hover:animate-pulse" />
+                {t.btn_analyze}
+              </button>
+            </div>
+          ) : (
+            /* Web AI No-Key Mode 3-Step Section */
+            <div className="mt-8 pt-8 border-t border-slate-100 space-y-6">
+              <div className="bg-gradient-to-r from-indigo-900 to-slate-900 text-white p-6 rounded-2xl shadow-lg space-y-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-amber-400" />
+                  <h3 className="font-bold text-base sm:text-lg">
+                    {language === 'ko' ? '웹 AI 무료 분석 가이드 (API Key 불필요)' : 'Free Web AI Mode (No API Key Needed)'}
+                  </h3>
+                  <span className="ml-auto px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full text-xs font-bold">
+                    100% Free
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                  {language === 'ko'
+                    ? 'API 키 발급이나 결제 설정 없이, 평소 사용하시는 무료 웹 AI(Google Gemini, ChatGPT, Claude 등)를 이용해 즉시 리포트를 생성할 수 있습니다.'
+                    : 'No API keys or billing needed. Leverage free web chatbots (Gemini, ChatGPT, Claude) to generate reports immediately.'}
+                </p>
+              </div>
+
+              {/* Step 1: Copy Prompt */}
+              <div className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">1</span>
+                    {t.web_step_1 || '1. 분석 프롬프트 복사하기'}
+                  </span>
+                  {webPromptCopied && (
+                    <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 animate-in fade-in">
+                      ✓ 복사 완료! 아래 AI 사이트에 붙여넣으세요
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-600">
+                  {language === 'ko'
+                    ? '위에서 선택하신 산업 분야와 입력된 사업계획서가 포함된 전문 컨설팅 실사 프롬프트를 복사합니다.'
+                    : 'Copies the McKinsey-grade Due Diligence prompt containing your business plan details.'}
+                </p>
+                <button
+                  type="button"
+                  onClick={handleCopyPrompt}
+                  disabled={isGeneratingPrompt}
+                  className="w-full sm:w-auto px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm transition-all shadow hover:shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Copy className="w-4 h-4" />
+                  <span>{webPromptCopied ? (t.btn_prompt_copied || '복사 완료!') : (t.btn_copy_prompt || '분석 프롬프트 복사하기')}</span>
+                </button>
+              </div>
+
+              {/* Step 2: Open AI Chatbot */}
+              <div className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                <span className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">2</span>
+                  {t.web_step_2 || '2. 평소 쓰는 무료 AI 웹사이트 열기'}
+                </span>
+                <p className="text-xs text-slate-600">
+                  {language === 'ko'
+                    ? '아래 버튼 중 원하시는 AI 챗봇을 클릭한 뒤, 채팅창에 복사한 프롬프트를 [Ctrl + V]로 붙여넣고 전송하세요.'
+                    : 'Click any AI chatbot below and paste [Ctrl + V] the copied prompt into the chat.'}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <a
+                    href="https://gemini.google.com/app"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="p-3 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-xl flex items-center justify-center gap-2 text-xs font-bold text-slate-800 transition-all shadow-sm group"
+                  >
+                    <Sparkles className="w-4 h-4 text-blue-500 group-hover:scale-110 transition-transform" />
+                    <span>Google Gemini (무료 추천)</span>
+                    <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                  </a>
+                  <a
+                    href="https://chatgpt.com/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="p-3 bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 rounded-xl flex items-center justify-center gap-2 text-xs font-bold text-slate-800 transition-all shadow-sm group"
+                  >
+                    <Bot className="w-4 h-4 text-emerald-600 group-hover:scale-110 transition-transform" />
+                    <span>ChatGPT (무료)</span>
+                    <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                  </a>
+                  <a
+                    href="https://claude.ai/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="p-3 bg-white hover:bg-amber-50 border border-slate-200 hover:border-amber-300 rounded-xl flex items-center justify-center gap-2 text-xs font-bold text-slate-800 transition-all shadow-sm group"
+                  >
+                    <MessageSquare className="w-4 h-4 text-amber-600 group-hover:scale-110 transition-transform" />
+                    <span>Claude (무료)</span>
+                    <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                  </a>
+                </div>
+              </div>
+
+              {/* Step 3: Paste Result & Visualize */}
+              <div className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">3</span>
+                    {t.web_step_3 || '3. AI 답변 붙여넣기 및 리포트 생성'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const sample = getSampleEvaluation(language);
+                      setWebAiResponseText(JSON.stringify(sample, null, 2));
+                    }}
+                    className="text-xs text-indigo-600 hover:text-indigo-800 font-bold underline cursor-pointer"
+                  >
+                    {t.btn_load_sample || '💡 체험용 샘플 데이터 채우기'}
+                  </button>
+                </div>
+                <textarea
+                  value={webAiResponseText}
+                  onChange={(e) => setWebAiResponseText(e.target.value)}
+                  placeholder={
+                    language === 'ko'
+                      ? "AI 챗봇이 답변한 내용(JSON 또는 전체 텍스트)을 여기에 그대로 [Ctrl + V]로 붙여넣으세요..."
+                      : "Paste the AI's response (including the JSON) here..."
+                  }
+                  className="w-full h-44 p-4 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-mono text-xs text-slate-800 leading-relaxed outline-none transition-all shadow-inner resize-y"
+                />
+
+                <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => onVisualizeWebResult(webAiResponseText)}
+                    className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-base rounded-xl transition-all shadow-lg hover:shadow-xl active:scale-[0.99] flex items-center justify-center gap-2.5 cursor-pointer"
+                  >
+                    <Sparkles className="w-5 h-5 text-amber-300" />
+                    <span>{t.btn_visualize_report || '분석 리포트 시각화하기 🚀'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onLoadSample}
+                    className="px-5 py-4 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs sm:text-sm rounded-xl transition-all active:scale-[0.99] cursor-pointer shrink-0"
+                  >
+                    <span>{language === 'ko' ? '샘플 즉시 체험' : 'Instant Demo'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
