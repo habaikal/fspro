@@ -263,20 +263,22 @@ export default function App() {
       );
     }
 
-    // 우선 시도할 모델과 모델 미지원 시 폴백할 모델 목록
+    // Google AI Studio에서 가장 안정적이고 널리 지원되는 표준 모델 순서로 배치
     const candidateModels = [
-      'gemini-3.1-pro-preview',
       'gemini-2.0-flash',
-      'gemini-1.5-pro'
+      'gemini-1.5-flash',
+      'gemini-1.5-pro',
+      'gemini-2.5-flash',
+      'gemini-3.1-pro-preview'
     ];
 
-    let lastError: Error | null = null;
+    let lastErrorMessage = '';
 
     for (let i = 0; i < candidateModels.length; i++) {
       const model = candidateModels[i];
       try {
         const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${cleanApiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(cleanApiKey)}`,
           {
             method: 'POST',
             headers: {
@@ -313,48 +315,67 @@ export default function App() {
 
           const lowerMsg = (errorDetails || '').toLowerCase();
 
-          // 모델 404 Not Found인 경우 다음 후보 모델로 자동 재시도
-          if ((response.status === 404 || lowerMsg.includes('not found')) && i < candidateModels.length - 1) {
-            console.warn(`Model ${model} unavailable, trying fallback ${candidateModels[i + 1]}...`);
-            continue;
-          }
-
-          // 비개발자가 즉시 원인을 파악할 수 있는 사용자 친화적 에러 메시지
-          let userFriendlyMsg = errorDetails ? `API Error (${response.status}): ${errorDetails}` : `API Error (${response.status})`;
-
+          // 만약 API 키 자체가 유효하지 않은 경우 (오타 등)
           if (
             lowerMsg.includes('api key not valid') ||
             lowerMsg.includes('invalid api_key') ||
             lowerMsg.includes('key not valid') ||
             (response.status === 400 && lowerMsg.includes('key'))
           ) {
+            throw new Error(
+              language === 'ko'
+                ? `입력하신 Gemini API Key가 유효하지 않습니다. 올바른 키인지 확인해주세요. (상세: ${errorDetails})`
+                : `The Gemini API Key is invalid. Please check and re-enter your key. (Details: ${errorDetails})`
+            );
+          }
+
+          // 다음 후보 모델이 남아있다면, 모델별 권한(403), 미지원(404), 인자 오류(400) 등에 대해 다음 모델로 자동 시도!
+          if (i < candidateModels.length - 1) {
+            console.warn(`[FS Pro] Model ${model} failed (HTTP ${response.status}: ${errorDetails}). Retrying with next model: ${candidateModels[i + 1]}...`);
+            lastErrorMessage = `[${model}] HTTP ${response.status}: ${errorDetails}`;
+            continue;
+          }
+
+          // 모든 모델이 실패했을 때 에러 메시지 구성
+          let userFriendlyMsg = errorDetails ? `API Error (${response.status}): ${errorDetails}` : `API Error (${response.status})`;
+
+          if (response.status === 403) {
             userFriendlyMsg = language === 'ko'
-              ? `Gemini API Key가 유효하지 않거나 만료되었습니다. API Key를 다시 입력해주세요.`
-              : `The Gemini API Key is invalid or expired. Please check and re-enter your key.`;
-          } else if (response.status === 403) {
-            userFriendlyMsg = language === 'ko'
-              ? `API 접근 권한이 없거나 키가 비활성화되었습니다. Google AI Studio 설정을 확인해주세요.`
-              : `API access forbidden. Please verify your API Key and Google AI Studio project settings.`;
+              ? `API 접근 권한 오류 (HTTP 403): ${errorDetails}. Google AI Studio(aistudio.google.com)에서 새로 발급받은 Gemini API 키인지 확인해주세요.`
+              : `API Access Forbidden (HTTP 403): ${errorDetails}. Please ensure your API key from Google AI Studio is active.`;
           } else if (response.status === 429 || lowerMsg.includes('quota') || lowerMsg.includes('resource_exhausted')) {
             userFriendlyMsg = language === 'ko'
-              ? `API 호출 사용량(Quota)을 초과했습니다. 잠시 후 다시 시도하거나 다른 API Key를 입력해주세요.`
-              : `API rate limit / quota exceeded. Please try again later or use another API Key.`;
+              ? `API 호출 사용량(Quota)을 초과했습니다. 잠시 후 다시 시도하거나 다른 API Key를 입력해주세요. (${errorDetails})`
+              : `API rate limit / quota exceeded. Please try again later or use another API Key. (${errorDetails})`;
           }
 
           throw new Error(userFriendlyMsg);
         }
 
         const data = await response.json();
+        if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
+          throw new Error(language === 'ko' ? 'AI 모델의 응답 데이터가 비어있습니다.' : 'Empty response from AI model.');
+        }
+
         return data.candidates[0].content.parts[0].text;
       } catch (err: any) {
-        lastError = err;
-        if (err.message && !err.message.includes('not found')) {
+        // 명시적 API 키 오류인 경우 즉시 던짐
+        if (err.message && (err.message.includes('유효하지 않습니다') || err.message.includes('The Gemini API Key is invalid'))) {
           throw err;
         }
+
+        // 마지막 모델이 아니라면 다음 모델 시도
+        if (i < candidateModels.length - 1) {
+          console.warn(`[FS Pro] Error calling ${model}: ${err.message}. Retrying fallback...`);
+          lastErrorMessage = err.message;
+          continue;
+        }
+
+        throw err;
       }
     }
 
-    throw lastError || new Error(language === 'ko' ? 'API 호출에 실패했습니다.' : 'API request failed.');
+    throw new Error(lastErrorMessage || (language === 'ko' ? '모든 AI 모델 호출에 실패했습니다.' : 'All AI model attempts failed.'));
   };
 
   const t = TRANSLATIONS[language];
